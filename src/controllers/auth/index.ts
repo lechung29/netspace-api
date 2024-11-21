@@ -49,7 +49,7 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
 const loginUser: RequestHandler = async (req: Request<{}, {}, { email: string; password: string }>, res: Response) => {
     const { email, password } = req.body;
 
-    const existingUser = await Users.findOne({ email });
+    const existingUser = await Users.findOne({ email }).lean();
 
     if (!existingUser) {
         res.status(200).send({
