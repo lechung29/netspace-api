@@ -1,5 +1,5 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
-import Users, { IUserData } from "../../models/users/users.model";
+import Users, { IResponseStatus, IUserData } from "../../models/users/users.model";
 import jwt from "jsonwebtoken";
 import bcryptjs from "bcryptjs"
 
@@ -10,39 +10,30 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
 
     if (!!existingUser) {
         res.status(200).send({
-            responseInfo: {
-                status: 0,
-                fieldError: "email",
-            },
-            message: "Error.Existed.Email",
+            requestStatus: IResponseStatus.Error,
+            fieldError: {
+                fieldName: "email",
+                errorMessage: "Error.Existed.Email"
+            }
         });
-        return;
     }
-
     const newUser = new Users({
         displayName,
         email,
-        password: bcryptjs.hashSync(password, 20),
+        password: req.body.password,
     });
 
     try {
         await newUser.save();
         res.status(201).send({
-            responseInfo: {
-                status: 1,
-            },
+            requestStatus: IResponseStatus.Success,
             message: "Successful.SignUp.User",
         });
-        return;
     } catch (error: any) {
         res.status(500).send({
-            responseInfo: {
-                status: 0,
-                fieldError: "email",
-            },
+            requestStatus: IResponseStatus.Error,
             message: "Error.Network",
         });
-        return;
     }
 };
 

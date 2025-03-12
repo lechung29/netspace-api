@@ -1,5 +1,10 @@
 import mongoose, { Document } from "mongoose";
 
+export enum IResponseStatus {
+    Error = 0,
+    Success = 1
+}
+
 export enum userRole {
     admin = "admin",
     user = "user",
