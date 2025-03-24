@@ -24,6 +24,7 @@ export interface IUserData extends Document {
     phoneNumber: string;
     avatar: string;
     gender: userGender;
+    refreshToken: string[];
 }
 
 export const defaultAvatar: string = "https://www.pngkey.com/png/full/115-1150420_avatar-png-pic-male-avatar-icon-png.png"
@@ -57,6 +58,13 @@ const userSchema = new mongoose.Schema<IUserData>(
             required: false,
             default: defaultAvatar,
         },
+        refreshToken: [
+            {
+                type: String,
+                required: false,
+                default: [],
+            }
+        ]
     },
     { timestamps: true }
 );

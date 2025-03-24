@@ -1,105 +1,124 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
-import Users, { IResponseStatus, IUserData } from "../../models/users/users.model";
+import Users, { IResponseStatus, IUserData, IUserInfo } from "../../models/users/users.model";
 import jwt from "jsonwebtoken";
 import bcryptjs from "bcryptjs"
 
+//#region Register New User
+
 const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "displayName" | "email" | "password">, {}>, res: Response) => {
     const { displayName, email, password } = req.body;
-
     const existingUser = await Users.findOne({ email });
-
     if (!!existingUser) {
-        res.status(200).send({
-            requestStatus: IResponseStatus.Error,
+        res.status(400).send({
+            status: IResponseStatus.Error,
             fieldError: {
                 fieldName: "email",
-                errorMessage: "Error.Existed.Email"
+                errorMessage: "Email này đã được sử dụng, vui lòng chọn email khác",
             }
         });
-    }
-    const newUser = new Users({
-        displayName,
-        email,
-        password: req.body.password,
-    });
-
-    try {
-        await newUser.save();
-        res.status(201).send({
-            requestStatus: IResponseStatus.Success,
-            message: "Successful.SignUp.User",
+    } else {
+        const newUser = new Users({
+            displayName,
+            email,
+            password: bcryptjs.hashSync(req.body.password, 26),
         });
-    } catch (error: any) {
-        res.status(500).send({
-            requestStatus: IResponseStatus.Error,
-            message: "Error.Network",
-        });
+    
+        try {
+            await newUser.save();
+            res.status(201).send({
+                status: IResponseStatus.Success,
+                message: "Đăng ký tài khoản thành công",
+            });
+        } catch (error: any) {
+            res.status(500).send({
+                status: IResponseStatus.Error,
+                message: "Có lỗi xảy ra, vui lòng thử lại sau",
+            });
+        }
     }
+    
 };
 
-const loginUser: RequestHandler = async (req: Request<{}, {}, { email: string; password: string }>, res: Response) => {
+//#endregion
+
+//#region Login User
+
+const loginUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "email" | "password">>, res: Response) => {
     const { email, password } = req.body;
 
-    const existingUser = await Users.findOne({ email }).lean();
+    const existingUser = await Users.findOne({ email })
 
     if (!existingUser) {
-        res.status(200).send({
-            responseInfo: {
-                status: 0,
-                fieldError: "email",
-            },
-            message: "Email not found",
+        res.status(400).send({
+            status: IResponseStatus.Error,
+            fieldError: {
+                fieldName: "email",
+                errorMessage: "Email này chưa được đăng ký",
+            }
         });
-        return;
-    }
-
-    if (!bcryptjs.compareSync(password, existingUser.password)) {
-        res.status(200).send({
-            responseInfo: {
-                status: 0,
-                fieldError: "password",
-            },
-            message: "Password is incorrect",
+    } else if (!bcryptjs.compareSync(password, existingUser.password))  {
+        res.status(400).send({
+            status: IResponseStatus.Error,
+            fieldError: {
+                fieldName: "password",
+                errorMessage: "Mật khẩu không chính xác",
+            }
         });
-        return;
-    }
-
-    try {
-        const accessToken = jwt.sign({ id: existingUser?._id }, process.env.JWT_SECRET!, { expiresIn: "10m" });
-        const { password, ...rest } = existingUser;
-        const refreshToken = jwt.sign(
-            { id: existingUser?._id, email: existingUser?.email, displayName: existingUser?.displayName },
-            process.env.JWT_SECRET!,
-            { expiresIn: "1d" }
-        );
-        res.status(200)
-            .cookie("jwt", refreshToken, {
-                httpOnly: true,
-                secure: true,
-                sameSite: "none",
-                maxAge: 1000 * 60 * 60 * 24 * 1, 
-            })
-            .send({
-                responseInfo: {
-                    status: 1,
-                },
-                message: "User login successfully",
+    } else {
+        try {
+            const accessToken = await jwt.sign({ id: existingUser._id, displayName: existingUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "10m" });
+            const { password, ...rest } = existingUser.toObject();
+            const refreshToken = await jwt.sign({ id: existingUser._id, email: existingUser.email, displayName: existingUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "1d" });
+            res.status(200).cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "none"}).send({
+                status: IResponseStatus.Success,
+                message: "Đăng nhập thành công",
                 data: {
                     ...rest,
                     accessToken,
                 },
             });
-        return
-    } catch (error) {
-        res.status(500).send({
-            responseInfo: {
-                status: 0,
-                fieldError: "email",
-            },
-            message: "Error.Network",
-        });
-        return;
+        } catch (error) {
+            res.status(500).send({
+                status: IResponseStatus.Error,
+                message: "Có lỗi xảy ra, vui lòng thử lại sau",
+            });
+        }
     }
 };
+
+//#endregion
+
+//#region Refresh Token
+
+export const refreshToken: RequestHandler = async (req: Request, res: Response, NextFunction: NextFunction) => {
+    const cookieRefreshToken = req.cookies?.refreshToken
+    if (!cookieRefreshToken) {
+        res.status(200).send({
+            code: 401,
+            message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+        })
+    } else {
+        let tempUser: IUserInfo | undefined = undefined
+        await jwt.verify(cookieRefreshToken, process.env.JWT_REFRESH!, async (err: any, user: any) => {
+            if (err) {
+                const existingUser = await Users.findOne({ email: (user as IUserInfo).email})
+                if (existingUser) {
+                    const currentUserRefreshTokens = existingUser.refreshToken
+                    await existingUser?.updateOne({ $pull: { refreshToken: currentUserRefreshTokens.filter(i => i !== cookieRefreshToken)}})
+                }
+                res.status(200).send({
+                    code: 401,
+                    message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+                });
+            } else {
+                tempUser = user as IUserInfo;
+                const newAccessToken = await jwt.sign({ id: tempUser._id, displayName: tempUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "10m" });
+                res.status(200).send({
+                    accessToken: newAccessToken
+                })
+            }
+        });
+    }
+}
 
 export { registerNewUser, loginUser };
