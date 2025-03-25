@@ -7,13 +7,13 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Debug biên dịch",
+            "name": "Debug",
             "program": "${workspaceFolder}/dist/index.js",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": ["${workspaceFolder}/dist/**/*.js"],
             "console": "integratedTerminal",
             "env": { "NODE_ENV": "development" },
-            "restart": true
+            "restart": true,
           }
     ]
 }

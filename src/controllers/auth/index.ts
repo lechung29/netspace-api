@@ -17,10 +17,11 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
             }
         });
     } else {
+        const hashPassword = bcryptjs.hashSync(req.body.password, 10);
         const newUser = new Users({
             displayName,
             email,
-            password: bcryptjs.hashSync(req.body.password, 26),
+            password: hashPassword,
         });
     
         try {
