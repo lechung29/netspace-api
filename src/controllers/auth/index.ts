@@ -68,9 +68,10 @@ const loginUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "e
     } else {
         try {
             const accessToken = await jwt.sign({ id: existingUser._id, displayName: existingUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "10m" });
-            const { password, ...rest } = existingUser.toObject();
-            const refreshToken = await jwt.sign({ id: existingUser._id, email: existingUser.email, displayName: existingUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "1d" });
-            res.status(200).cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "none"}).send({
+            const currentRefreshToken = await jwt.sign({ id: existingUser._id, email: existingUser.email, displayName: existingUser.displayName }, process.env.JWT_SECRET!, { expiresIn: "1d" });
+            await existingUser.updateOne({ $push: { refreshToken: currentRefreshToken }})
+            const { password, refreshToken, ...rest } = existingUser.toObject();
+            res.status(200).cookie("refreshToken", currentRefreshToken, { httpOnly: true, secure: true, sameSite: "none"}).send({
                 status: IResponseStatus.Success,
                 message: "Đăng nhập thành công",
                 data: {
