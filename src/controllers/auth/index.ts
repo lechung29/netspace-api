@@ -5,8 +5,8 @@ import bcryptjs from "bcryptjs"
 
 //#region Register New User
 
-const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "displayName" | "email" | "password">, {}>, res: Response) => {
-    const { displayName, email, password } = req.body;
+const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "firstName" | "lastName" | "email" | "password">, {}>, res: Response) => {
+    const { firstName, lastName, email, password } = req.body;
     const existingUser = await Users.findOne({ email });
     if (!!existingUser) {
         res.status(400).send({
@@ -17,9 +17,11 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
             }
         });
     } else {
-        const hashPassword = bcryptjs.hashSync(req.body.password, 10);
+        const hashPassword = bcryptjs.hashSync(password, 10);
         const newUser = new Users({
-            displayName,
+            firstName,
+            lastName,
+            displayName: `${firstName} ${lastName}`,
             email,
             password: hashPassword,
         });
