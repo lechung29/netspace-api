@@ -18,6 +18,8 @@ export enum userGender {
 export type IUserInfo = Omit<IUserData, "password">;
 
 export interface IUserData extends Document {
+    firstName: string;
+    lastName: string;
     displayName: string;
     email: string;
     password: string;
@@ -31,6 +33,14 @@ export const defaultAvatar: string = "https://www.pngkey.com/png/full/115-115042
 
 const userSchema = new mongoose.Schema<IUserData>(
     {
+        firstName: {
+            type: String,
+            required: true
+        },
+        lastName: {
+            type: String,
+            required: true
+        },
         displayName: {
             type: String,
             required: true,
