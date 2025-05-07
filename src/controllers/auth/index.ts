@@ -11,10 +11,8 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
     if (!!existingUser) {
         res.status(400).send({
             status: IResponseStatus.Error,
-            fieldError: {
-                fieldName: "email",
-                errorMessage: "Email này đã được sử dụng, vui lòng chọn email khác",
-            }
+            fieldError: "email",
+            message: "The email you entered has already been registered to another account. Please use a different email address to continue signing up.",
         });
     } else {
         const hashPassword = bcryptjs.hashSync(password, 10);
@@ -30,12 +28,12 @@ const registerNewUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserDa
             await newUser.save();
             res.status(201).send({
                 status: IResponseStatus.Success,
-                message: "Đăng ký tài khoản thành công",
+                message: "Welcome! Your account has been successfully created and is now active. You can start using our services.",
             });
         } catch (error: any) {
             res.status(500).send({
                 status: IResponseStatus.Error,
-                message: "Có lỗi xảy ra, vui lòng thử lại sau",
+                message: "Unable to connect to the server. This may be due to a network interruption or the server is temporarily unavailable. Please check your internet connection or refresh the page after a few minutes.",
             });
         }
     }
@@ -54,18 +52,14 @@ const loginUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "e
     if (!existingUser) {
         res.status(400).send({
             status: IResponseStatus.Error,
-            fieldError: {
-                fieldName: "email",
-                errorMessage: "Email này chưa được đăng ký",
-            }
+            fieldError: "email",
+            message: "The email address you entered is not associated with any account. Please double-check your email or sign up if you don’t have an account yet.",
         });
     } else if (!bcryptjs.compareSync(password, existingUser.password))  {
         res.status(400).send({
             status: IResponseStatus.Error,
-            fieldError: {
-                fieldName: "password",
-                errorMessage: "Mật khẩu không chính xác",
-            }
+            fieldError: "password",
+            message: "The password you entered is incorrect. Please double-check and try again. If you’ve forgotten your password, you can reset it by click 'Forgot password' button below.",
         });
     } else {
         try {
@@ -75,7 +69,7 @@ const loginUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "e
             const { password, refreshToken, ...rest } = existingUser.toObject();
             res.status(200).cookie("refreshToken", currentRefreshToken, { httpOnly: true, secure: true, sameSite: "none"}).send({
                 status: IResponseStatus.Success,
-                message: "Đăng nhập thành công",
+                message: "Welcome, you’ve successfully logged into your account!",
                 data: {
                     ...rest,
                     accessToken,
@@ -84,7 +78,7 @@ const loginUser: RequestHandler = async (req: Request<{}, {}, Pick<IUserData, "e
         } catch (error) {
             res.status(500).send({
                 status: IResponseStatus.Error,
-                message: "Có lỗi xảy ra, vui lòng thử lại sau",
+                message: "Unable to connect to the server. This may be due to a network interruption or the server is temporarily unavailable. Please check your internet connection or refresh the page after a few minutes.",
             });
         }
     }
@@ -99,7 +93,7 @@ export const refreshToken: RequestHandler = async (req: Request, res: Response, 
     if (!cookieRefreshToken) {
         res.status(200).send({
             code: 401,
-            message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+            message: "Your session has expired due to inactivity for an extended period. Please log in again to continue using the app's features.",
         })
     } else {
         let tempUser: IUserInfo | undefined = undefined
@@ -112,7 +106,7 @@ export const refreshToken: RequestHandler = async (req: Request, res: Response, 
                 }
                 res.status(200).send({
                     code: 401,
-                    message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
+                    message: "Your session has expired due to inactivity for an extended period. Please log in again to continue using the app's features.",
                 });
             } else {
                 tempUser = user as IUserInfo;
